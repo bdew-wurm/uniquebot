@@ -1,0 +1,22 @@
+dbConnection = "jdbc:mariadb://localhost:3306/yourdbname?user=yourdbuser&password=yourdbpass"
+
+discord {
+  token = "<token goes here>"
+  server = "Your discord server name"
+  channel = "uniques"
+}
+
+servers = [
+  {
+    name = "some server"
+    addr = "192.168.1.7"
+    port = "18013"
+    pass = "seekrit"
+  }
+  {
+    name = "another server"
+    addr = "192.168.1.7"
+    port = "18023"
+    pass = "seekrit"
+  }
+]

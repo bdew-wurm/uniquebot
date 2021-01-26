@@ -1,0 +1,73 @@
+plugins {
+    id "java"
+}
+
+group "net.bdew.wurm"
+version "1.0"
+
+repositories {
+    mavenCentral()
+    maven { url "https://jcenter.bintray.com" }
+    maven { url "https://gotti.no-ip.org/maven/repository" }
+    maven { url 'https://jitpack.io' }
+}
+
+sourceSets {
+    common
+    bot
+    mod
+}
+
+configurations {
+    botComplie
+    modCompile
+}
+
+dependencies {
+    botCompile 'org.apache.commons:commons-lang3:3.11'
+    botCompile 'net.dv8tion:JDA:4.2.0_212'
+    botCompile 'org.slf4j:slf4j-log4j12:1.7.30'
+    botCompile 'com.typesafe:config:1.4.1'
+    botCompile 'org.mariadb.jdbc:mariadb-java-client:2.7.1'
+    botCompile sourceSets.common.output
+    modCompile 'org.gotti.wurmunlimited:server-modlauncher:0.43'
+    modCompile 'com.github.bdew-wurm:bdew_server_mod_tools:v1.0.0'
+    modCompile sourceSets.common.output
+}
+
+task modJar(type: Jar) {
+    from sourceSets.mod.output
+    from sourceSets.common.output
+    archiveFileName = "mod/${project.name}.jar"
+}
+
+task botJar(type: Jar) {
+    from sourceSets.bot.output
+    from sourceSets.common.output
+    archiveFileName = "bot/${project.name}.jar"
+    manifest {
+        attributes(
+                "Main-Class": "net.bdew.wurm.uniquebot.Main",
+                "Class-Path": configurations.botCompile
+                        .filter { !it.isDirectory() && !it.name.endsWith('.pom') }
+                        .collect { "libs/" + it.getName() }.join(' ')
+        )
+    }
+}
+
+task dist(type: Zip) {
+    into("mods", {
+        into(project.name, {
+            from modJar
+        })
+        from fileTree(dir: 'src/mod/props', include: '*')
+    })
+    into("libs", {
+        from configurations.botCompile
+                .filter { !it.isDirectory() && !it.name.endsWith('.pom') }
+                .collect()
+    })
+    from botJar
+    from files("application.conf.example")
+    archiveFileName = "${project.name}-${project.version}.zip"
+}
