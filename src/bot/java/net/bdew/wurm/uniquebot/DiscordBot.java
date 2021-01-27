@@ -64,7 +64,7 @@ public class DiscordBot extends ListenerAdapter {
 
             logger.info(String.format("Found me=%s guild=%s channel=%s", myUserId, guildId, channelId));
 
-            refreshReport(true).join();
+            refreshReport(false).join();
 
             logger.info("Initial report posted successfully");
 
@@ -82,10 +82,16 @@ public class DiscordBot extends ListenerAdapter {
 
     @Override
     public void onGuildMessageReceived(@NotNull GuildMessageReceivedEvent event) {
-        if (event.getAuthor().isBot()) return;
         Message message = event.getMessage();
         String content = message.getContentRaw();
         MessageChannel channel = event.getChannel();
+
+        if (message.getType() == MessageType.CHANNEL_PINNED_ADD && event.getAuthor().isBot() && channel.getId().equals(channelId)) {
+            logger.info(String.format("Deleting pin message %s", event.getMessageId()));
+            event.getMessage().delete().queue();
+        }
+
+        if (event.getAuthor().isBot()) return;
         if (channel.getId().equals(channelId)) {
             if (content.startsWith("!found")) {
                 if (content.length() < 8) {
@@ -166,11 +172,14 @@ public class DiscordBot extends ListenerAdapter {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         getChannel().ifPresent(channel -> {
             MessageHistory hist = channel.getHistory();
-            hist.retrievePast(100).queue((messages) -> {
+            channel.getHistoryBefore(lastReportId, 100).queue((history) -> {
+                List<Message> messages = history.getRetrievedHistory();
                 logger.info(String.format("Checking %d old messages", messages.size()));
                 messages.forEach(message -> {
                     if (message.getAuthor().getId().equals(myUserId) && !message.getId().equals(lastReportId) && !message.getEmbeds().isEmpty()) {
-                        message.delete().queue((res) -> logger.info(String.format("Deleted old message %s", message.getId())));
+                        message.delete().queue((res) -> logger.info(String.format("Deleted old report message %s", message.getId())));
+                    } else if (message.getAuthor().getId().equals(myUserId) && message.getType() == MessageType.CHANNEL_PINNED_ADD) {
+                        message.delete().queue((res) -> logger.info(String.format("Deleted old pin message %s", message.getId())));
                     }
                 });
                 promise.complete(null);
@@ -191,7 +200,7 @@ public class DiscordBot extends ListenerAdapter {
                         channel.sendMessage(String.format(
                                 "Adding new unique - **%s** on **%s**.", unique.name, unique.server)).queue()
                 );
-                if (forcePost || !report.added.isEmpty() || !report.removed.isEmpty()) {
+                if (forcePost || !report.added.isEmpty() || !report.removed.isEmpty() || lastReportId == null) {
                     return postList(channel, report.uniques);
                 } else return CompletableFuture.<Void>completedFuture(null);
             }).orElseGet(() -> CompletableFuture.completedFuture(null));
