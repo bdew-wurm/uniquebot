@@ -19,7 +19,7 @@ import java.rmi.server.ServerNotActiveException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -72,15 +72,12 @@ public class UniqueRemoteImpl extends UnicastRemoteObject implements UniqueRemot
     public List<UniqueEntry> getUniques(String password) throws RemoteException {
         validateIntraServerPassword(password);
         log.info(String.format("Sending uniques to %s", getClientHostSafe()));
-        try {
-            return ServerThreadExecutor.INSTANCE.submit(() ->
-                    Arrays.stream(Creatures.getInstance().getCreatures())
-                            .filter(c -> c.isUnique() && !c.isReborn() && !c.isDead())
-                            .map(this::makeEntry)
-                            .collect(Collectors.toList())).get();
-        } catch (InterruptedException | ExecutionException e) {
-            log.log(Level.SEVERE, "Error generating unique list", e);
-            throw new RuntimeException(e);
-        }
+        return CompletableFuture.supplyAsync(() ->
+                        Arrays.stream(Creatures.getInstance().getCreatures())
+                                .filter(c -> c.isUnique() && !c.isReborn() && !c.isDead())
+                                .map(this::makeEntry)
+                                .collect(Collectors.toList()),
+                ServerThreadExecutor.INSTANCE)
+                .join();
     }
 }
