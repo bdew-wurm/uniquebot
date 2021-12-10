@@ -3,11 +3,11 @@ plugins {
 }
 
 group "net.bdew.wurm"
-version "1.1"
+version "1.2"
 
 repositories {
     mavenCentral()
-    maven { url "https://jcenter.bintray.com" }
+    maven { url "https://m2.dv8tion.net/releases" }
     maven { url "https://gotti.no-ip.org/maven/repository" }
     maven { url 'https://jitpack.io' }
 }
@@ -25,13 +25,13 @@ configurations {
 
 dependencies {
     botCompile 'org.apache.commons:commons-lang3:3.11'
-    botCompile 'net.dv8tion:JDA:4.2.0_212'
-    botCompile 'org.slf4j:slf4j-log4j12:1.7.30'
+    botCompile 'net.dv8tion:JDA:4.4.0_350'
+    botCompile 'org.slf4j:slf4j-jdk14:1.7.32'
     botCompile 'com.typesafe:config:1.4.1'
-    botCompile 'org.mariadb.jdbc:mariadb-java-client:2.7.1'
+    botCompile 'org.mariadb.jdbc:mariadb-java-client:2.7.4'
     botCompile sourceSets.common.output
-    modCompile 'org.gotti.wurmunlimited:server-modlauncher:0.43'
-    modCompile 'com.github.bdew-wurm:bdew_server_mod_tools:v1.0.0'
+    modCompile 'org.gotti.wurmunlimited:server-modlauncher:0.45'
+    modCompile 'com.github.bdew-wurm:bdew_server_mod_tools:v2.1.0'
     modCompile sourceSets.common.output
 }
 
@@ -68,6 +68,6 @@ task dist(type: Zip) {
                 .collect()
     })
     from botJar
-    from files("application.conf.example")
+    from files("application.conf.example", "logging.properties")
     archiveFileName = "${project.name}-${project.version}.zip"
 }

@@ -2,9 +2,8 @@ package net.bdew.wurm.uniquebot;
 
 import net.bdew.wurm.uniquebot.rmi.UniqueEntry;
 import net.bdew.wurm.uniquebot.rmi.UniqueRemote;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -17,7 +16,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class GameServer {
-    private static final Logger logger = LogManager.getLogger("GameServer");
+    private static final Logger logger = LoggerFactory.getLogger("GameServer");
 
     public final String name;
     private final String addr;
@@ -48,7 +47,7 @@ public class GameServer {
                 UniqueRemote conn = connect();
                 return Optional.of(conn.getUniques(pass));
             } catch (RemoteException | NotBoundException e) {
-                logger.log(Level.WARN, String.format("Error querying server %s: %s", name, e.getMessage()));
+                logger.warn(String.format("Error querying server %s: %s", name, e.getMessage()));
                 return Optional.empty();
             }
         });

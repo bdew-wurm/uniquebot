@@ -11,10 +11,11 @@ import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEve
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.security.auth.login.LoginException;
 import java.time.Instant;
 import java.util.*;
@@ -24,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class DiscordBot extends ListenerAdapter {
-    private static final Logger logger = LogManager.getLogger("DiscordBot");
+    private static final Logger logger = LoggerFactory.getLogger("DiscordBot");
     private final static Timer timer = new Timer();
     private final String serverName, channelName, token;
     private final GameServers servers;
@@ -145,7 +146,7 @@ public class DiscordBot extends ListenerAdapter {
     public void start() {
         try {
             jda = JDABuilder.create(token, GatewayIntent.GUILD_MESSAGES, GatewayIntent.GUILD_MESSAGE_REACTIONS)
-                    .disableCache(CacheFlag.ACTIVITY, CacheFlag.VOICE_STATE, CacheFlag.EMOTE, CacheFlag.CLIENT_STATUS)
+                    .disableCache(CacheFlag.ACTIVITY, CacheFlag.VOICE_STATE, CacheFlag.EMOTE, CacheFlag.CLIENT_STATUS, CacheFlag.ONLINE_STATUS)
                     .addEventListeners(this)
                     .build();
         } catch (LoginException e) {
@@ -236,7 +237,7 @@ public class DiscordBot extends ListenerAdapter {
                 "\t!found <number> <location>\n" +
                 "Last update:");
 
-        return channel.sendMessage(msg.build()).submit()
+        return channel.sendMessageEmbeds(msg.build()).submit()
                 .thenCompose((res) -> {
                     res.pin().queue();
                     logger.info(String.format("Posted new report %s", res.getId()));
