@@ -86,6 +86,7 @@ public class DiscordBot extends ListenerAdapter {
         Message message = event.getMessage();
         String content = message.getContentRaw();
         MessageChannel channel = event.getChannel();
+        Member member = event.getMember();
 
         if (message.getType() == MessageType.CHANNEL_PINNED_ADD && event.getAuthor().isBot() && channel.getId().equals(channelId)) {
             logger.info(String.format("Deleting pin message %s", event.getMessageId()));
@@ -113,7 +114,7 @@ public class DiscordBot extends ListenerAdapter {
                     if (ent != null) {
                         String location = left.substring(sp).trim();
                         if (location.length() > 0) {
-                            handleFound(message, ent, location);
+                            handleFound(message, ent, location, member == null ? null : member.getEffectiveName());
                         } else {
                             reject(message, "Location not provided");
                         }
@@ -160,12 +161,18 @@ public class DiscordBot extends ListenerAdapter {
                 .flatMap(g -> Optional.ofNullable(g.getTextChannelById(channelId)));
     }
 
-    private void handleFound(Message msg, KnownUnique ent, String location) {
+    private void handleFound(Message msg, KnownUnique ent, String location, @Nullable String name) {
+        String oldLocation = ent.location == null ? "???" : ent.location;
         ent.location = location;
-        ent.reporter = msg.getAuthor().getName();
+        ent.reporter = name == null ? msg.getAuthor().getName() : name;
         db.updateLocation(ent)
+                .thenCompose((v) ->
+                        msg.reply(String.format(
+                                "Changing **%s** on **%s** from **\"%s\"** to **\"%s\"**",
+                                ent.name, ent.server, oldLocation, location
+                        )).mentionRepliedUser(false).submit()
+                )
                 .thenCompose((v) -> refreshReport(true))
-                .thenCompose((v) -> msg.addReaction("U+2705").submit())
                 .join();
     }
 
