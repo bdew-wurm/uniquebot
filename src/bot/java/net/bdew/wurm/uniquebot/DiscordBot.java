@@ -6,16 +6,18 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.StatusChangeEvent;
-import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent;
-import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.InteractionHook;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import javax.security.auth.login.LoginException;
 import java.time.Instant;
 import java.util.*;
@@ -77,69 +79,81 @@ public class DiscordBot extends ListenerAdapter {
                 }
             };
 
+            guild.upsertCommand("found", "Update the location of a unique")
+                    .addOption(OptionType.INTEGER, "number", "Number of the unique on the list", true)
+                    .addOption(OptionType.STRING, "location", "Current location", true)
+                    .queue(command -> logger.info("Found command registered"));
+
             clearOldMessages().thenRun(() -> timer.schedule(updateTask, 30000, 30000));
         }
     }
 
     @Override
-    public void onGuildMessageReceived(@NotNull GuildMessageReceivedEvent event) {
+    public void onMessageReceived(@NotNull MessageReceivedEvent event) {
         Message message = event.getMessage();
-        String content = message.getContentRaw();
         MessageChannel channel = event.getChannel();
-        Member member = event.getMember();
 
         if (message.getType() == MessageType.CHANNEL_PINNED_ADD && event.getAuthor().isBot() && channel.getId().equals(channelId)) {
             logger.info(String.format("Deleting pin message %s", event.getMessageId()));
             event.getMessage().delete().queue();
         }
+    }
 
-        if (event.getAuthor().isBot()) return;
-        if (channel.getId().equals(channelId)) {
-            if (content.startsWith("!found")) {
-                if (content.length() < 8) {
-                    reject(message, "Invalid command");
-                    return;
-                }
-                String left = content.substring(7);
-                int sp = left.indexOf(" ");
-                if (sp > 0) {
-                    int num;
-                    try {
-                        num = Integer.parseInt(left.substring(0, sp).trim());
-                    } catch (NumberFormatException e) {
-                        reject(message, "Invalid unique number in command");
-                        return;
-                    }
-                    KnownUnique ent = numberMap.get(num);
-                    if (ent != null) {
-                        String location = left.substring(sp).trim();
-                        if (location.length() > 0) {
-                            handleFound(message, ent, location, member == null ? null : member.getEffectiveName());
-                        } else {
-                            reject(message, "Location not provided");
-                        }
-                    } else {
-                        reject(message, "Invalid unique number in command");
-                    }
-                } else {
-                    reject(message, "Invalid command");
-                }
+    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+        if (event.getName().equals("found")) {
+            event.deferReply().queue();
+
+            int number = Objects.requireNonNull(event.getOption("number")).getAsInt();
+            String location = Objects.requireNonNull(event.getOption("location")).getAsString();
+
+            KnownUnique ent = numberMap.get(number);
+
+            if (ent == null) {
+                reject(event.getHook(), "❌ Invalid unique number in command");
+                return;
             }
+
+            if (location.length() == 0) {
+                reject(event.getHook(), "❌ Invalid location in command");
+                return;
+            }
+
+            Member member = event.getMember();
+
+            if (member == null) {
+                logger.warn(String.format("Can't find member in command interaction: %s", event));
+                reject(event.getHook(), "❌ Something went wrong, sorry");
+                return;
+            }
+
+            String oldLocation = ent.location == null ? "???" : ent.location;
+            ent.location = location;
+            ent.reporter = member.getEffectiveName();
+
+            db.updateLocation(ent)
+                    .thenCompose((v) ->
+                            event.getHook().sendMessage(String.format(
+                                    "✅ Changing **%s** on **%s** from **\"%s\"** to **\"%s\"**",
+                                    ent.name, ent.server, oldLocation, location
+                            )).mentionRepliedUser(false).submit()
+                    )
+                    .thenCompose((v) -> refreshReport(true))
+                    .join();
         }
     }
 
-    private void reject(Message msg, String reason) {
-        msg.getChannel().sendMessage(String.format("<@%s>: %s", msg.getAuthor().getId(), reason))
-                .delay(60, TimeUnit.SECONDS)
+    private void reject(InteractionHook hook, String reason) {
+        hook.sendMessage(String.format("<@%s>: %s", hook.getInteraction().getUser().getId(), reason))
+                .delay(20, TimeUnit.SECONDS)
                 .flatMap(Message::delete)
-                .flatMap(x -> msg.delete())
                 .queue();
     }
 
     @Override
-    public void onGuildMessageReactionAdd(@NotNull GuildMessageReactionAddEvent event) {
-        if (event.getMessageId().equals(lastReportId) && !event.getUserId().equals(myUserId) && "U+1F504".equalsIgnoreCase(event.getReactionEmote().getAsCodepoints())) {
-            logger.info(String.format("Report refresh requested by %s", event.getMember().getEffectiveName()));
+    public void onMessageReactionAdd(@NotNull MessageReactionAddEvent event) {
+        Member member = event.getMember();
+        if (event.getMessageId().equals(lastReportId) && !event.getUserId().equals(myUserId) && "U+1F504".equalsIgnoreCase(event.getReaction().getEmoji().asUnicode().getAsCodepoints()) && member != null) {
+            logger.info(String.format("Report refresh requested by %s", member.getEffectiveName()));
             refreshReport(true).join();
         }
     }
@@ -147,7 +161,7 @@ public class DiscordBot extends ListenerAdapter {
     public void start() {
         try {
             jda = JDABuilder.create(token, GatewayIntent.GUILD_MESSAGES, GatewayIntent.GUILD_MESSAGE_REACTIONS)
-                    .disableCache(CacheFlag.ACTIVITY, CacheFlag.VOICE_STATE, CacheFlag.EMOTE, CacheFlag.CLIENT_STATUS, CacheFlag.ONLINE_STATUS)
+                    .disableCache(CacheFlag.ACTIVITY, CacheFlag.VOICE_STATE, CacheFlag.CLIENT_STATUS, CacheFlag.ONLINE_STATUS, CacheFlag.EMOJI, CacheFlag.STICKER)
                     .addEventListeners(this)
                     .build();
         } catch (LoginException e) {
@@ -161,25 +175,9 @@ public class DiscordBot extends ListenerAdapter {
                 .flatMap(g -> Optional.ofNullable(g.getTextChannelById(channelId)));
     }
 
-    private void handleFound(Message msg, KnownUnique ent, String location, @Nullable String name) {
-        String oldLocation = ent.location == null ? "???" : ent.location;
-        ent.location = location;
-        ent.reporter = name == null ? msg.getAuthor().getName() : name;
-        db.updateLocation(ent)
-                .thenCompose((v) ->
-                        msg.reply(String.format(
-                                "Changing **%s** on **%s** from **\"%s\"** to **\"%s\"**",
-                                ent.name, ent.server, oldLocation, location
-                        )).mentionRepliedUser(false).submit()
-                )
-                .thenCompose((v) -> refreshReport(true))
-                .join();
-    }
-
     private CompletableFuture<Void> clearOldMessages() {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         getChannel().ifPresent(channel -> {
-            MessageHistory hist = channel.getHistory();
             channel.getHistoryBefore(lastReportId, 100).queue((history) -> {
                 List<Message> messages = history.getRetrievedHistory();
                 logger.info(String.format("Checking %d old messages", messages.size()));
@@ -241,7 +239,7 @@ public class DiscordBot extends ListenerAdapter {
         });
 
         msg.setFooter("To update the list send a message like:\n" +
-                "\t!found <number> <location>\n" +
+                "\t/found <number> <location>\n" +
                 "Last update:");
 
         return channel.sendMessageEmbeds(msg.build()).submit()

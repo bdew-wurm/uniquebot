@@ -18,7 +18,7 @@ public class ListUpdater {
         this.db = db;
     }
 
-    public class Result {
+    public static class Result {
         public final Map<GameServer, List<KnownUnique>> uniques;
         public final List<KnownUnique> added, removed;
 
@@ -29,7 +29,7 @@ public class ListUpdater {
         }
     }
 
-    private class Merged {
+    private static class Merged {
         public final List<KnownUnique> uniques, added, removed;
 
         public Merged(List<KnownUnique> uniques, List<KnownUnique> added, List<KnownUnique> removed) {
