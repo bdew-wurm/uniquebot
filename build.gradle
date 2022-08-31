@@ -19,8 +19,8 @@ sourceSets {
 }
 
 configurations {
-    botComplie
-    modCompile
+    botDeps.extendsFrom botImplementation
+    modDeps.extendsFrom modImplementation
 }
 
 tasks.withType(JavaCompile) {
@@ -28,15 +28,16 @@ tasks.withType(JavaCompile) {
 }
 
 dependencies {
-    botCompile 'org.apache.commons:commons-lang3:3.11'
-    botCompile 'net.dv8tion:JDA:5.0.0-alpha.18'
-    botCompile 'org.slf4j:slf4j-jdk14:1.7.36'
-    botCompile 'com.typesafe:config:1.4.1'
-    botCompile 'org.mariadb.jdbc:mariadb-java-client:2.7.4'
-    botCompile sourceSets.common.output
-    modCompile 'org.gotti.wurmunlimited:server-modlauncher:0.45'
-    modCompile 'com.github.bdew-wurm:bdew_server_mod_tools:v2.1.0'
-    modCompile sourceSets.common.output
+    botImplementation 'org.apache.commons:commons-lang3:3.12.0'
+    botImplementation 'net.dv8tion:JDA:5.0.0-alpha.18'
+    botImplementation 'org.slf4j:slf4j-jdk14:2.0.0'
+    botImplementation 'com.typesafe:config:1.4.2'
+    botImplementation 'org.mariadb.jdbc:mariadb-java-client:3.0.6'
+    botImplementation sourceSets.common.output
+
+    modImplementation 'org.gotti.wurmunlimited:server-modlauncher:0.45'
+    modImplementation 'com.github.bdew-wurm:bdew_server_mod_tools:v2.1.0'
+    modImplementation sourceSets.common.output
 }
 
 task modJar(type: Jar) {
@@ -52,7 +53,7 @@ task botJar(type: Jar) {
     manifest {
         attributes(
                 "Main-Class": "net.bdew.wurm.uniquebot.Main",
-                "Class-Path": configurations.botCompile
+                "Class-Path": configurations.botDeps
                         .filter { !it.isDirectory() && !it.name.endsWith('.pom') }
                         .collect { "libs/" + it.getName() }.join(' ')
         )
@@ -67,11 +68,21 @@ task dist(type: Zip) {
         from fileTree(dir: 'src/mod/props', include: '*')
     })
     into("libs", {
-        from configurations.botCompile
+        from configurations.botDeps
                 .filter { !it.isDirectory() && !it.name.endsWith('.pom') }
                 .collect()
     })
     from botJar
     from files("application.conf.example", "logging.properties")
     archiveFileName = "${project.name}-${project.version}.zip"
+}
+
+task docker(type: Tar) {
+    into("libs", {
+        from configurations.botDeps
+                .filter { !it.isDirectory() && !it.name.endsWith('.pom') }
+                .collect()
+    })
+    from botJar
+    archiveFileName = "docker.tar"
 }
