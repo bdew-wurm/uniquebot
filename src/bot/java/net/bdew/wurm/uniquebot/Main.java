@@ -14,7 +14,7 @@ public class Main {
 
     public static void main(String[] args) {
         File cf = new File("application.conf");
-        Config config = ConfigFactory.parseFile(cf);
+        Config config = ConfigFactory.parseFile(cf).resolve();
 
         GameServers servers = new GameServers(config.getConfigList("servers").stream().map(c ->
                 new GameServer(
