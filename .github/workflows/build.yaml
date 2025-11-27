@@ -29,6 +29,8 @@ jobs:
 
     - name: Setup gradle
       uses: gradle/actions/setup-gradle@v5
+      with:
+        gradle-version: "8.14.3"
 
     - name: Run gradle build
       run: ./gradlew dist docker
