@@ -28,7 +28,7 @@ jobs:
       uses: docker/setup-buildx-action@v2
 
     - name: Run gradle build
-      uses: gradle/gradle-build-action@v2
+      uses: gradle/gradle-build-action@v3
       with:
         arguments: dist docker
     
