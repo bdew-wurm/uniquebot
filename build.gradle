@@ -1,5 +1,6 @@
 plugins {
     id "java"
+    id "com.github.ben-manes.versions" version "0.53.0"
 }
 
 group "net.bdew.wurm"
@@ -23,30 +24,30 @@ configurations {
     modDeps.extendsFrom modImplementation
 }
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
 dependencies {
-    botImplementation 'org.apache.commons:commons-lang3:3.12.0'
-    botImplementation 'net.dv8tion:JDA:5.0.0-alpha.18'
-    botImplementation 'org.slf4j:slf4j-jdk14:2.0.0'
-    botImplementation 'com.typesafe:config:1.4.2'
-    botImplementation 'org.mariadb.jdbc:mariadb-java-client:3.0.6'
+    botImplementation 'org.apache.commons:commons-lang3:3.20.0'
+    botImplementation 'net.dv8tion:JDA:6.1.2'
+    botImplementation 'org.slf4j:slf4j-jdk14:2.0.17'
+    botImplementation 'com.typesafe:config:1.4.5'
+    botImplementation 'org.mariadb.jdbc:mariadb-java-client:3.5.6'
     botImplementation sourceSets.common.output
 
-    modImplementation 'org.gotti.wurmunlimited:server-modlauncher:0.45'
-    modImplementation 'com.github.bdew-wurm:bdew_server_mod_tools:v2.1.0'
+    modImplementation 'org.gotti.wurmunlimited:server-modlauncher:0.47'
+    modImplementation 'com.github.bdew-wurm:bdew_server_mod_tools:2.1.0'
     modImplementation sourceSets.common.output
 }
 
-task modJar(type: Jar) {
+tasks.register('modJar', Jar) {
     from sourceSets.mod.output
     from sourceSets.common.output
     archiveFileName = "mod/${project.name}.jar"
 }
 
-task botJar(type: Jar) {
+tasks.register('botJar', Jar) {
     from sourceSets.bot.output
     from sourceSets.common.output
     archiveFileName = "bot/${project.name}.jar"
@@ -60,7 +61,7 @@ task botJar(type: Jar) {
     }
 }
 
-task dist(type: Zip) {
+tasks.register('dist', Zip) {
     into("mods", {
         into(project.name, {
             from modJar
@@ -77,7 +78,7 @@ task dist(type: Zip) {
     archiveFileName = "${project.name}-${project.version}.zip"
 }
 
-task docker(type: Tar) {
+tasks.register('docker', Tar) {
     into("libs", {
         from configurations.botDeps
                 .filter { !it.isDirectory() && !it.name.endsWith('.pom') }

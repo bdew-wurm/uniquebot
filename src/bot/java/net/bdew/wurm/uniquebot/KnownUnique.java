@@ -1,8 +1,7 @@
 package net.bdew.wurm.uniquebot;
 
 import net.bdew.wurm.uniquebot.rmi.UniqueEntry;
-
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public class KnownUnique {
     public final long id;

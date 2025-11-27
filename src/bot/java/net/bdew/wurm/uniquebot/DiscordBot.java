@@ -5,6 +5,8 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.StatusChangeEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
@@ -18,7 +20,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.security.auth.login.LoginException;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -50,7 +51,7 @@ public class DiscordBot extends ListenerAdapter {
 
     @Override
     public void onStatusChange(@NotNull StatusChangeEvent event) {
-        logger.info("Status: " + event.getNewStatus());
+        logger.info("Status: {}", event.getNewStatus());
         if (event.getNewStatus() == JDA.Status.CONNECTED) {
             Guild guild = jda.getGuilds().stream()
                     .filter(x -> x.getName().equals(serverName))
@@ -65,7 +66,7 @@ public class DiscordBot extends ListenerAdapter {
 
             myUserId = jda.getSelfUser().getId();
 
-            logger.info(String.format("Found me=%s guild=%s channel=%s", myUserId, guildId, channelId));
+            logger.info("Found me={} guild={} channel={}", myUserId, guildId, channelId);
 
             refreshReport(false).join();
 
@@ -94,7 +95,7 @@ public class DiscordBot extends ListenerAdapter {
         MessageChannel channel = event.getChannel();
 
         if (message.getType() == MessageType.CHANNEL_PINNED_ADD && event.getAuthor().isBot() && channel.getId().equals(channelId)) {
-            logger.info(String.format("Deleting pin message %s", event.getMessageId()));
+            logger.info("Deleting pin message {}", event.getMessageId());
             event.getMessage().delete().queue();
         }
     }
@@ -113,7 +114,7 @@ public class DiscordBot extends ListenerAdapter {
                 return;
             }
 
-            if (location.length() == 0) {
+            if (location.isEmpty()) {
                 reject(event.getHook(), "❌ Invalid location in command");
                 return;
             }
@@ -121,7 +122,7 @@ public class DiscordBot extends ListenerAdapter {
             Member member = event.getMember();
 
             if (member == null) {
-                logger.warn(String.format("Can't find member in command interaction: %s", event));
+                logger.warn("Can't find member in command interaction: {}", event);
                 reject(event.getHook(), "❌ Something went wrong, sorry");
                 return;
             }
@@ -153,20 +154,16 @@ public class DiscordBot extends ListenerAdapter {
     public void onMessageReactionAdd(@NotNull MessageReactionAddEvent event) {
         Member member = event.getMember();
         if (event.getMessageId().equals(lastReportId) && !event.getUserId().equals(myUserId) && "U+1F504".equalsIgnoreCase(event.getReaction().getEmoji().asUnicode().getAsCodepoints()) && member != null) {
-            logger.info(String.format("Report refresh requested by %s", member.getEffectiveName()));
+            logger.info("Report refresh requested by {}", member.getEffectiveName());
             refreshReport(true).join();
         }
     }
 
     public void start() {
-        try {
-            jda = JDABuilder.create(token, GatewayIntent.GUILD_MESSAGES, GatewayIntent.GUILD_MESSAGE_REACTIONS)
-                    .disableCache(CacheFlag.ACTIVITY, CacheFlag.VOICE_STATE, CacheFlag.CLIENT_STATUS, CacheFlag.ONLINE_STATUS, CacheFlag.EMOJI, CacheFlag.STICKER)
-                    .addEventListeners(this)
-                    .build();
-        } catch (LoginException e) {
-            throw new RuntimeException(e);
-        }
+        jda = JDABuilder.create(token, GatewayIntent.GUILD_MESSAGES, GatewayIntent.GUILD_MESSAGE_REACTIONS)
+                .disableCache(CacheFlag.ACTIVITY, CacheFlag.VOICE_STATE, CacheFlag.CLIENT_STATUS, CacheFlag.ONLINE_STATUS, CacheFlag.EMOJI, CacheFlag.STICKER)
+                .addEventListeners(this)
+                .build();
     }
 
     private Optional<TextChannel> getChannel() {
@@ -180,12 +177,12 @@ public class DiscordBot extends ListenerAdapter {
         getChannel().ifPresent(channel -> {
             channel.getHistoryBefore(lastReportId, 100).queue((history) -> {
                 List<Message> messages = history.getRetrievedHistory();
-                logger.info(String.format("Checking %d old messages", messages.size()));
+                logger.info("Checking {} old messages", messages.size());
                 messages.forEach(message -> {
                     if (message.getAuthor().getId().equals(myUserId) && !message.getId().equals(lastReportId) && !message.getEmbeds().isEmpty()) {
-                        message.delete().queue((res) -> logger.info(String.format("Deleted old report message %s", message.getId())));
+                        message.delete().queue((res) -> logger.info("Deleted old report message {}", message.getId()));
                     } else if (message.getAuthor().getId().equals(myUserId) && message.getType() == MessageType.CHANNEL_PINNED_ADD) {
-                        message.delete().queue((res) -> logger.info(String.format("Deleted old pin message %s", message.getId())));
+                        message.delete().queue((res) -> logger.info("Deleted old pin message {}", message.getId()));
                     }
                 });
                 promise.complete(null);
@@ -196,7 +193,7 @@ public class DiscordBot extends ListenerAdapter {
 
     private CompletableFuture<Void> refreshReport(boolean forcePost) {
         return updater.getUniqueList().thenCompose(report -> {
-            logger.info(String.format("Refreshed report added=%d removed=%d force=%s", report.added.size(), report.removed.size(), forcePost));
+            logger.info("Refreshed report added={} removed={} force={}", report.added.size(), report.removed.size(), forcePost);
             return getChannel().map(channel -> {
                 report.removed.forEach(unique ->
                         channel.sendMessage(String.format(
@@ -245,13 +242,13 @@ public class DiscordBot extends ListenerAdapter {
         return channel.sendMessageEmbeds(msg.build()).submit()
                 .thenCompose((res) -> {
                     res.pin().queue();
-                    logger.info(String.format("Posted new report %s", res.getId()));
+                    logger.info("Posted new report {}", res.getId());
                     numberMap = newMap;
                     String oldRep = lastReportId;
                     lastReportId = res.getId();
                     if (oldRep != null) {
                         return channel.deleteMessageById(oldRep).submit().thenAccept((res2) ->
-                                logger.info(String.format("Deleted old report %s", oldRep))
+                                logger.info("Deleted old report {}", oldRep)
                         );
                     } else return CompletableFuture.completedFuture(null);
                 }).thenAccept(x ->
