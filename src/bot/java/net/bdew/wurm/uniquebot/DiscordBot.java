@@ -100,9 +100,14 @@ public class DiscordBot extends ListenerAdapter {
         }
     }
 
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
         if (event.getName().equals("found")) {
             event.deferReply().queue();
+
+            if (!ShouldHandleCommand(event)) {
+                reject(event.getHook(), String.format("❌ Command can only be used in <#%s> channel", channelId));
+                return;
+            }
 
             int number = Objects.requireNonNull(event.getOption("number")).getAsInt();
             String location = Objects.requireNonNull(event.getOption("location")).getAsString();
@@ -141,6 +146,10 @@ public class DiscordBot extends ListenerAdapter {
                     .thenCompose((v) -> refreshReport(true))
                     .join();
         }
+    }
+
+    private boolean ShouldHandleCommand(SlashCommandInteractionEvent event) {
+        return event.getGuild() != null && event.getGuild().getId().equals(guildId) && event.getChannel().getId().equals(channelId);
     }
 
     private void reject(InteractionHook hook, String reason) {
