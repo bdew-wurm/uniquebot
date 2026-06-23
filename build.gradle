@@ -30,10 +30,10 @@ tasks.withType(JavaCompile).configureEach {
 
 dependencies {
     botImplementation 'org.apache.commons:commons-lang3:3.20.0'
-    botImplementation 'net.dv8tion:JDA:6.4.1'
-    botImplementation 'org.slf4j:slf4j-jdk14:2.0.17'
-    botImplementation 'com.typesafe:config:1.4.8'
-    botImplementation 'org.mariadb.jdbc:mariadb-java-client:3.5.8'
+    botImplementation 'net.dv8tion:JDA:6.4.2'
+    botImplementation 'org.slf4j:slf4j-jdk14:2.0.18'
+    botImplementation 'com.typesafe:config:1.4.9'
+    botImplementation 'org.mariadb.jdbc:mariadb-java-client:3.5.9'
     botImplementation sourceSets.common.output
 
     modImplementation 'org.gotti.wurmunlimited:server-modlauncher:0.47'
