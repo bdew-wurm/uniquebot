@@ -33,7 +33,7 @@ dependencies {
     botImplementation 'net.dv8tion:JDA:6.7.0'
     botImplementation 'org.slf4j:slf4j-jdk14:2.0.20'
     botImplementation 'com.typesafe:config:1.4.9'
-    botImplementation 'org.mariadb.jdbc:mariadb-java-client:3.5.10'
+    botImplementation 'org.mariadb.jdbc:mariadb-java-client:4.0.0'
     botImplementation sourceSets.common.output
 
     modImplementation 'org.gotti.wurmunlimited:server-modlauncher:0.47'
